@@ -75,6 +75,192 @@
 - Intentionally did not change workflow logic or add more local CI hardening, because the current blocker is access to a real GitHub-connected checkout.
 - Updated project memory files so the next run can start directly with remote CI execution instead of repeating local checks.
 
+## Iteration 9
+
+- Added a framework-agnostic reference PDO adapter under `src/Infrastructure/Pdo/`.
+- Implemented repository mappings for inventory lots, stock movements, reservations and valuation snapshots.
+- Added `PdoTransactionManager` with nested-transaction pass-through and basic concurrency exception mapping.
+- Added reference SQL schema files at `database/schema/reference.sql` and `database/schema/sqlite.sql`.
+- Added `tools/run-db-adapter-smoke.php` and Composer shortcut `composer test:db-smoke`.
+- Added `tests/Unit/PdoReferenceAdapterTest.php` as an integration-like SQLite test that skips when `ext-pdo_sqlite` is unavailable.
+- Confirmed local environment has `ext-pdo` but not `ext-pdo_sqlite`, so the DB smoke path could be wired and documented but not executed here.
+- Updated README and project memory files to document the adapter boundaries and remaining production-hardening work.
+
+## Iteration 10
+
+- Re-read only the PDO adapter, schema, smoke script and related memory files requested for the verification step.
+- Re-checked DB-capable environment prerequisites.
+- Confirmed again that this workspace has `ext-pdo`, but still has no `ext-pdo_sqlite` and no `WAREHOUSE_DB_DSN`.
+- Intentionally did not simulate a successful DB-backed run and did not modify application services or valuation logic.
+- Tightened README and testing docs with an explicit DB verification checklist so the next DB-capable run can focus only on real adapter validation.
+
+## Iteration 11
+
+- Re-read only the PDO adapter, schema, smoke script, adapter test and related memory files requested for the DB verification step.
+- Re-checked `ext-pdo_sqlite` and `WAREHOUSE_DB_DSN`.
+- Confirmed again that the workspace is still not DB-capable for end-to-end adapter verification.
+- Intentionally did not modify the PDO repositories or schema, because there is no new runtime failure to fix yet.
+- Refreshed README and memory files so the next DB-capable run can execute `composer test:db-smoke` and `vendor/bin/phpunit --filter PdoReferenceAdapterTest` immediately.
+
+## Iteration 12
+
+- Re-read only the Average Cost contract files, PDO adapter files and related memory/docs files needed for the reported adapter defect.
+- Reproduced the failures in `composer test:db-smoke` and `vendor/bin/phpunit --filter PdoReferenceAdapterTest`.
+- Confirmed the root cause was not PDO persistence or hydration: the domain contract already returns two lot-based allocations for Average Cost via `AbstractInventoryValuationStrategy::buildSequentialResult()`.
+- Fixed the expectation layer only:
+  - `tools/run-db-adapter-smoke.php`
+  - `tests/Unit/PdoReferenceAdapterTest.php`
+- Re-ran:
+  - `composer test:db-smoke`
+  - `vendor/bin/phpunit --filter PdoReferenceAdapterTest`
+  - `vendor/bin/phpunit --filter AverageCostValuationStrategyTest`
+- All three checks passed.
+- Updated docs to record that the SQLite-backed reference PDO path is now practically verified and that the defect was an expectation mismatch.
+
+## Iteration 13
+
+- Re-read only the PDO adapter, schema, smoke/test entrypoints and related memory/docs files for the MySQL hardening step.
+- Checked MySQL capability in the workspace:
+  - `pdo_mysql` is available
+  - `WAREHOUSE_DB_DSN` is unset
+  - `mysql` CLI is not installed
+- Added `database/schema/mysql.sql` with MySQL-oriented choices:
+  - `ENGINE=InnoDB`
+  - `utf8mb4`
+  - MySQL-specific indexes
+  - `MEDIUMTEXT` metadata storage
+  - surrogate primary key for allocation rows
+- Updated `tools/run-db-adapter-smoke.php` to auto-select `database/schema/mysql.sql` for MySQL DSNs and to verify transaction rollback behavior.
+- Updated `tests/Unit/PdoReferenceAdapterTest.php` to support DSN-driven execution and to assert rollback behavior.
+- Re-ran the available SQLite-backed checks:
+  - `composer test:db-smoke`
+  - `vendor/bin/phpunit --filter PdoReferenceAdapterTest`
+  - `php tools/lint.php`
+- Confirmed the adapter still passes on the SQLite reference path after MySQL-oriented hardening.
+- Did not simulate MySQL success, because no live MySQL DSN is available in this workspace.
+
+## Iteration 14
+
+- Re-read only the PDO adapter, schema, smoke/test entrypoints and related memory/docs files for the live MySQL verification step.
+- Re-checked MySQL runtime prerequisites:
+  - `pdo_mysql` is available
+  - `WAREHOUSE_DB_DSN`, `WAREHOUSE_DB_USER`, `WAREHOUSE_DB_PASSWORD` and `WAREHOUSE_DB_SCHEMA_FILE` are unset
+  - `mysql` CLI is not installed in this workspace
+- Intentionally did not run `composer test:db-smoke` or `vendor/bin/phpunit --filter PdoReferenceAdapterTest` against MySQL, because that would not be a real DB-backed verification.
+- Updated README and memory files with the exact MySQL verification prerequisites so the next MySQL-capable run can start directly with smoke and adapter-level tests.
+
+## Iteration 15
+
+- Re-read only the PDO adapter, schema, smoke/test entrypoints and related memory/docs files for local Docker-backed MySQL verification.
+- Confirmed Docker daemon access and added `tools/run-mysql-verification-docker.sh` as a minimal local helper for MySQL-backed verification.
+- Added Composer shortcut `composer test:db:mysql:docker`.
+- Pulled and booted Docker-backed MySQL `8.0.45`.
+- Ran the real MySQL-backed verification path:
+  - `bash tools/run-mysql-verification-docker.sh test`
+  - internally ran `composer test:db-smoke`
+  - internally ran `vendor/bin/phpunit --filter PdoReferenceAdapterTest`
+- Found one MySQL-specific defect in the verification layer:
+  - `PdoReferenceAdapterTest` reused the same MySQL database across test methods and reapplied schema without resetting tables first
+  - smoke/test logic was made repeatable by dropping known adapter tables before schema apply
+- Re-ran the Docker-backed MySQL verification successfully after the fix.
+- Captured the verified MySQL baseline:
+  - server version `8.0.45`
+  - transaction isolation `REPEATABLE-READ`
+- Updated the helper so `test` mode cleans up the container automatically unless `WAREHOUSE_MYSQL_KEEP_CONTAINER=1`.
+- Verified that the helper now removes the test container automatically after a successful run.
+
+## Iteration 16
+
+- Re-read only the PDO adapter, schema, smoke/test entrypoints, MySQL helper and related memory/docs files for PostgreSQL hardening.
+- Confirmed Docker daemon access and checked host prerequisites:
+  - `pdo_pgsql` is not available on host PHP
+  - PostgreSQL verification therefore needed a containerized PHP runtime rather than a host DSN run
+- Added `database/schema/postgresql.sql`.
+- Added `docker/db-verification/php81-pgsql/Dockerfile`.
+- Added `tools/run-postgres-verification-docker.sh`.
+- Added Composer shortcut `composer test:db:pgsql:docker`.
+- Updated `tools/run-db-adapter-smoke.php` and `tests/Unit/PdoReferenceAdapterTest.php` so `pgsql:` DSNs auto-select `database/schema/postgresql.sql`.
+- Built the PostgreSQL verification PHP image and ran the real PostgreSQL-backed verification path:
+  - `bash tools/run-postgres-verification-docker.sh test`
+- Found one PostgreSQL-specific defect in the helper layer:
+  - the helper passed a host absolute schema path into the container
+  - fixed by switching container execution to `/app/database/schema/postgresql.sql`
+  - also silenced Composer/git ownership noise inside the container by marking `/app` as a safe git directory
+- Re-ran the PostgreSQL verification successfully after the fix.
+- Captured the verified PostgreSQL baseline:
+  - server version `16.13`
+  - default transaction isolation `read committed`
+- Verified the Composer shortcut:
+  - `composer test:db:pgsql:docker`
+- Verified that the helper removes the PostgreSQL container and helper network automatically after a successful run.
+
+## Iteration 17
+
+- Re-read only the memory files, PDO adapter files, schema files and verification helpers required for extraction planning.
+- Chose a low-risk staged extraction strategy instead of moving the verified PDO runtime immediately.
+- Added `packages/warehouse-pdo-adapter/` as an in-repository production-focused package workspace.
+- Added `PdoAdapterConfig` and `PdoAdapterFactory` so deployment-facing connection/bootstrap concerns can evolve separately from the reference runtime.
+- Added production-facing schema copies under `packages/warehouse-pdo-adapter/resources/schema/` for MySQL and PostgreSQL.
+- Added package-local docs for adapter boundaries, migration ownership and operational defaults.
+- Updated root README and project memory files to separate:
+  - root reference runtime and verification tooling
+  - extracted package workspace and production-focused concerns
+- Did not move `src/Infrastructure/Pdo/` out of the root package yet, because the runtime boundary is not frozen.
+
+## Iteration 18
+
+- Re-read only the memory files, root PDO runtime files and extracted package workspace needed for boundary freeze.
+- Chose boundary path A as the stable structure:
+  - `warehouse-core` keeps ownership of verified runtime classes, reference schemas and verification tooling
+  - `warehouse-pdo-adapter` stays a production-facing packaging layer on top of that runtime
+- Updated README, architecture, publishing docs and handoff notes so runtime/schema/tooling ownership is explicit.
+- Kept business logic and verified PDO runtime code untouched.
+- Prepared the next step as packaging cleanup and publishing/versioning discipline rather than runtime relocation.
+
+## Iteration 19
+
+- Re-read only the packaging, publishing and schema files needed for release-discipline cleanup.
+- Chose the package versioning strategy:
+  - both packages use semantic versioning
+  - major/minor compatibility lines stay aligned while both live in the same repository
+  - current adapter rule is `warehouse-pdo-adapter 0.1.x` -> `warehouse-core ^0.1`
+- Chose the schema policy:
+  - root `database/schema/mysql.sql` and `database/schema/postgresql.sql` are source of truth
+  - package-local MySQL/PostgreSQL schemas are controlled copies
+  - schema copies must be updated in the same commit as the root change
+- Added package-local docs for compatibility, schema sync and release checklist.
+- Synchronized `packages/warehouse-pdo-adapter/resources/schema/*.sql` with the current verified root vendor-specific schemas.
+
+## Iteration 20
+
+- Re-read only the publishing, schema and package metadata/docs needed for real release planning.
+- Chose `git subtree split` as the monorepo publishing strategy.
+- Fixed the publication model:
+  - `warehouse-core` publishes from the monorepo root
+  - `warehouse-pdo-adapter` publishes from a dedicated subtree-split repository
+- Added a concrete execution plan at `docs/RELEASE_EXECUTION.md`, including:
+  - split commands
+  - tag naming
+  - push order
+  - schema-sync gate before adapter release
+- Updated root and package docs so the chosen release choreography is explicit rather than implied.
+
+## Iteration 21
+
+- Re-read only the release-flow files needed for a dry-run release attempt.
+- Confirmed this workspace is now a real git checkout on `main` with `origin` configured.
+- Confirmed local branch/tag creation works by creating and deleting temporary dry-run refs.
+- Confirmed `warehouse-core` dry-run prerequisites are only partially satisfied:
+  - git checkout exists
+  - tag/branch creation works
+  - worktree is dirty
+  - remote reachability to `origin` failed due DNS resolution in this environment
+- Confirmed `warehouse-pdo-adapter` dry-run is blocked more concretely:
+  - `adapter-remote` is missing
+  - `packages/warehouse-pdo-adapter/` is not present in committed `HEAD`
+  - `git subtree split --prefix=packages/warehouse-pdo-adapter` therefore returned `No new revisions were found`
+- Updated release docs to make those blockers explicit instead of leaving them implicit.
+
 ## Added files
 
 - `composer.json`
@@ -95,6 +281,12 @@
 - `tools/*.php`
 - `docker/legacy/php56/Dockerfile`
 - `tools/run-legacy-tests-docker.sh`
+- `database/schema/reference.sql`
+- `database/schema/sqlite.sql`
+- `database/schema/mysql.sql`
+- `src/Infrastructure/Pdo/*.php`
+- `tools/run-db-adapter-smoke.php`
+- `tests/Unit/PdoReferenceAdapterTest.php`
 
 ## Modified files
 
@@ -110,6 +302,7 @@
 - `src/Infrastructure/InMemory/InMemoryStockMovementRepository.php`
 - `src/Infrastructure/Stub/DatabaseInventoryLotRepositoryStub.php`
 - `examples/bootstrap.php`
+- `src/Infrastructure/Stub/DatabaseInventoryLotRepositoryStub.php`
 - `docs/PROJECT_STATE.md`
 - `docs/NEXT_STEPS.md`
 - `docs/ARCHITECTURE.md`
@@ -128,9 +321,14 @@
 - PHP 5.6 runtime enforcement exposed interface/implementation signature mismatches that were not visible in the PHP 8.1 smoke-only path.
 - Remote GitHub Actions cache behavior and runner-side execution still have not been exercised from this workspace.
 - Remote GitHub Actions cannot be triggered from this workspace because repository metadata and GitHub CLI access are absent.
+- The last reported Average Cost adapter failure was caused by incorrect expectation of a single synthetic allocation; the actual domain contract requires multiple lot-based allocations with averaged unit cost.
+- Host PHP still lacks `ext-pdo_pgsql`, so PostgreSQL verification currently depends on the Docker helper path rather than direct host execution.
+- MySQL-backed verification is now confirmed locally; the remaining persistence gap is production-focused extraction rather than missing MySQL coverage.
+- PostgreSQL-backed verification is now confirmed locally; the remaining persistence gap is production-focused extraction rather than missing PostgreSQL coverage.
+- PostgreSQL-backed verification is now confirmed locally; the next persistence step is extraction planning rather than another vendor-baseline proof.
 
 ## Pending
 
 - Run the GitHub Actions matrix from a real git checkout
 - Validate CI matrix behavior for hosted modern jobs
-- Add non-memory persistence adapters when needed
+- Execute the reference PDO adapter against a MySQL DSN

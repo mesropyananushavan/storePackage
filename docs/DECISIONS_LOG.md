@@ -71,3 +71,45 @@
 - Decision: keep CI caching pragmatic: Buildx cache for the legacy Docker image and Composer download caches for hosted modern jobs.
 - Reason: this gives most of the available speedup without turning the workflow into a bespoke release pipeline.
 - Consequences: the workflow is faster and clearer on paper, but real cache effectiveness still needs remote confirmation on GitHub Actions.
+
+## 2026-04-17 / Iteration 9
+
+- Decision: ship the reference database adapter as plain PDO infrastructure inside the core package instead of introducing a DBAL or framework integration layer.
+- Reason: the package needs a readable persistence reference that stays framework-agnostic and PHP 5.6-compatible.
+- Consequences: consumers get a working baseline adapter and schema, but production teams still need vendor-specific hardening, migrations and retry policies.
+
+## 2026-04-17 / Iteration 9
+
+- Decision: store stock-movement metadata as JSON text and cost allocations in a separate table keyed by `operation_id`.
+- Reason: this mirrors the existing audit model without changing service contracts and stays portable across common PDO drivers.
+- Consequences: the adapter remains simple and auditable, but JSON validation and query ergonomics are intentionally limited in the reference implementation.
+
+## 2026-04-17 / Iteration 17
+
+- Decision: start production-focused PDO adapter extraction as an in-repository package workspace before moving runtime classes.
+- Reason: the reference PDO runtime is already verified on SQLite, MySQL and PostgreSQL, so the lowest-risk next step is to separate packaging, schema ownership and operational concerns without destabilizing the proven runtime.
+- Consequences: `packages/warehouse-pdo-adapter/` now owns config/factory scaffolding and production-facing docs, while `src/Infrastructure/Pdo/` remains the active verified runtime until the packaging boundary is frozen.
+
+## 2026-04-17 / Iteration 18
+
+- Decision: freeze the package boundary on path A and keep `src/Infrastructure/Pdo/` in `warehouse-core` as supported runtime.
+- Reason: moving the verified runtime into a second package now would introduce avoidable breakage risk and deprecation overhead before packaging and publishing roles are even fully stabilized.
+- Consequences: `warehouse-pdo-adapter` becomes a production-facing bootstrap/schema/docs layer on top of `warehouse-core`, and any future runtime move is deferred to a dedicated deprecation iteration.
+
+## 2026-04-17 / Iteration 19
+
+- Decision: keep package version lines compatibility-aligned and treat root vendor-specific schema files as source of truth.
+- Reason: the extracted adapter package depends on the core runtime and ships controlled schema copies, so publishable discipline needs explicit compatibility and sync rules before any real release attempt.
+- Consequences: `warehouse-pdo-adapter 0.1.x` now targets `warehouse-core ^0.1`, package schema copies must be updated in the same commit as root MySQL/PostgreSQL schema changes, and package-local compatibility/sync/release docs are now required reading for publication.
+
+## 2026-04-17 / Iteration 20
+
+- Decision: use `git subtree split` as the monorepo publishing strategy for `storepackage/warehouse-pdo-adapter`, while `storepackage/warehouse-core` continues to publish directly from the root repository.
+- Reason: this is the most practical low-risk path for the current structure because the core package already matches the repository root and the adapter package already lives under a clean subtree prefix.
+- Consequences: release choreography now depends on a second remote repository for the adapter package, monorepo adapter bookkeeping tags use a package-scoped format, and split/push steps are documented as the required manual path until later automation is introduced.
+
+## 2026-04-17 / Iteration 21
+
+- Decision: treat committed package history and configured adapter remote as hard prerequisites for subtree-based release dry-runs.
+- Reason: the first real dry-run showed that `git subtree split` cannot validate an uncommitted package subtree and that documenting the split flow is not enough unless the remote layout also exists.
+- Consequences: release docs now explicitly require a clean/committed worktree, `adapter-remote`, and reachable remotes before the first meaningful adapter release attempt.

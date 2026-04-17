@@ -1,0 +1,35 @@
+{
+    "name": "storepackage/warehouse-pdo-adapter",
+    "description": "Production-focused PDO adapter packaging layer for storepackage/warehouse-core.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": [
+        "warehouse",
+        "inventory",
+        "pdo",
+        "adapter",
+        "mysql",
+        "postgresql"
+    ],
+    "authors": [
+        {
+            "name": "StorePackage"
+        }
+    ],
+    "require": {
+        "php": ">=5.6 <8.2",
+        "ext-pdo": "*",
+        "storepackage/warehouse-core": "^0.1"
+    },
+    "suggest": {
+        "ext-pdo_mysql": "Recommended when the adapter is used against MySQL.",
+        "ext-pdo_pgsql": "Recommended when the adapter is used against PostgreSQL."
+    },
+    "autoload": {
+        "psr-4": {
+            "StorePackage\\WarehousePdoAdapter\\": "src/"
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

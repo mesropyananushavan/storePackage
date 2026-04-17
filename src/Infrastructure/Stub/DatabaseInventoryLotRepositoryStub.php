@@ -10,7 +10,7 @@ class DatabaseInventoryLotRepositoryStub implements InventoryLotRepositoryInterf
 {
     private function notImplemented()
     {
-        throw new BadMethodCallException('Replace this stub with a database-backed repository implementation.');
+        throw new BadMethodCallException('Replace this stub with a database-backed repository implementation such as the reference PDO adapter in Infrastructure\\Pdo.');
     }
 
     public function findAvailableLotsBySku($sku, $warehouseId, $locationId)
