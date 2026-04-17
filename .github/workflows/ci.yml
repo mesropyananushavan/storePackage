@@ -1,0 +1,103 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  COMPOSER_CACHE_DIR: ~/.cache/composer
+
+jobs:
+  test-legacy:
+    name: test / php 5.6 / phpunit 5 / docker
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache legacy Composer downloads
+        uses: actions/cache@v4
+        with:
+          path: .cache/composer-legacy
+          key: legacy-composer-${{ runner.os }}-${{ hashFiles('composer.json') }}
+          restore-keys: |
+            legacy-composer-${{ runner.os }}-
+
+      - name: Build legacy PHP 5.6 image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/legacy/php56/Dockerfile
+          tags: warehouse-core-legacy-php56:ci
+          load: true
+          cache-from: type=gha,scope=legacy-php56
+          cache-to: type=gha,mode=max,scope=legacy-php56
+
+      - name: Run legacy PHPUnit path
+        run: WAREHOUSE_LEGACY_IMAGE=warehouse-core-legacy-php56:ci WAREHOUSE_LEGACY_SKIP_BUILD=1 bash tools/run-legacy-tests-docker.sh
+
+  test-modern:
+    name: test / php ${{ matrix.php }} / phpunit 9
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['7.4', '8.1']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer:v2.7
+          extensions: dom, json, libxml, mbstring, tokenizer, xmlwriter
+
+      - name: Cache Composer downloads
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.COMPOSER_CACHE_DIR }}
+          key: modern-composer-${{ runner.os }}-php${{ matrix.php }}-${{ hashFiles('composer.json') }}
+          restore-keys: |
+            modern-composer-${{ runner.os }}-php${{ matrix.php }}-
+            modern-composer-${{ runner.os }}-
+
+      - name: Validate Composer manifest
+        run: composer validate --strict
+
+      - name: Resolve modern dev dependencies
+        run: composer update --no-interaction --prefer-dist --no-progress
+
+      - name: Run modern PHPUnit path
+        run: composer test:modern
+
+  runtime-smoke:
+    name: runtime smoke / php 8.1 / no-dev fallback
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          coverage: none
+          tools: composer:v2.7
+
+      - name: Validate Composer manifest
+        run: composer validate --strict
+
+      - name: Run fallback verification path
+        run: composer verify

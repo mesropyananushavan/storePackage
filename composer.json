@@ -1,0 +1,57 @@
+{
+    "name": "storepackage/warehouse-core",
+    "description": "Framework-agnostic warehouse automation core with inventory valuation, reservations, movements and audit trail.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": [
+        "warehouse",
+        "inventory",
+        "stock",
+        "fifo",
+        "lifo",
+        "average-cost",
+        "composer-package"
+    ],
+    "authors": [
+        {
+            "name": "Store Package Team"
+        }
+    ],
+    "require": {
+        "php": ">=5.6 <8.2"
+    },
+    "require-dev": {
+        "ext-dom": "*",
+        "ext-json": "*",
+        "ext-libxml": "*",
+        "ext-mbstring": "*",
+        "ext-tokenizer": "*",
+        "ext-xmlwriter": "*",
+        "phpunit/phpunit": "^5.7 || ^9.6"
+    },
+    "autoload": {
+        "psr-4": {
+            "StorePackage\\WarehouseCore\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "StorePackage\\WarehouseCore\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "lint": "@php tools/lint.php",
+        "test": "@test:phpunit",
+        "test:phpunit": "@php tools/run-phpunit.php",
+        "test:legacy": "@test:phpunit",
+        "test:legacy:docker": "bash tools/run-legacy-tests-docker.sh",
+        "test:modern": "@test:phpunit",
+        "test:smoke": "@php tools/run-smoke-tests.php",
+        "verify": [
+            "@lint",
+            "@test:smoke"
+        ]
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
