@@ -39,6 +39,7 @@ Those remain part of `warehouse-core` until a future iteration explicitly opens 
 
 - A real standalone package release from this shared repository still needs a split-package publication mechanism, such as subtree split or equivalent packaging automation.
 - That operational step is now specified as `git subtree split`; it is still manual in this iteration.
+- Run `composer release:rehearse` before any adapter tag/split work, and use `php tools/run-release-rehearsal.php --check-remotes` from the actual release environment.
 
 ## Release discipline
 

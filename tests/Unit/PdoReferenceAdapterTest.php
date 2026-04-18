@@ -7,11 +7,14 @@ use StorePackage\WarehouseCore\Application\Config\ValuationConfig;
 use StorePackage\WarehouseCore\Application\Config\ValuationMethodResolver;
 use StorePackage\WarehouseCore\Application\Service\GetAvailableStockService;
 use StorePackage\WarehouseCore\Application\Service\GetInventoryValuationService;
+use StorePackage\WarehouseCore\Application\Service\MoveStockService;
 use StorePackage\WarehouseCore\Application\Service\ReceiveStockService;
 use StorePackage\WarehouseCore\Application\Service\ReserveStockService;
 use StorePackage\WarehouseCore\Application\Service\ShipStockService;
 use StorePackage\WarehouseCore\Domain\Entity\GoodsReceipt;
+use StorePackage\WarehouseCore\Domain\Entity\InventoryAdjustment;
 use StorePackage\WarehouseCore\Domain\Entity\Shipment;
+use StorePackage\WarehouseCore\Domain\Exception\InsufficientStockException;
 use StorePackage\WarehouseCore\Domain\Service\AverageCostValuationStrategy;
 use StorePackage\WarehouseCore\Domain\Service\FifoValuationStrategy;
 use StorePackage\WarehouseCore\Domain\Service\LifoValuationStrategy;
@@ -116,6 +119,102 @@ class PdoReferenceAdapterTest extends BaseTestCase
         }
 
         $this->assertNull($lotRepository->findById('lot-rollback-test'));
+    }
+
+    public function testReferencePdoMoveRejectsReservedStockTransfer()
+    {
+        $connection = $this->createConnection();
+        $pdo = $connection['pdo'];
+
+        $lotRepository = new PdoInventoryLotRepository($pdo);
+        $movementRepository = new PdoStockMovementRepository($pdo);
+        $reservationRepository = new PdoReservationRepository($pdo);
+        $transactions = new PdoTransactionManager($pdo);
+
+        $clock = new SystemClock();
+        $ids = new IncrementalIdGenerator();
+        $events = new InMemoryEventDispatcher();
+        $logger = new NullLogger();
+
+        $receive = new ReceiveStockService($lotRepository, $movementRepository, $transactions, $clock, $ids, $events, $logger);
+        $reserve = new ReserveStockService($lotRepository, $reservationRepository, $movementRepository, $transactions, $clock, $ids, $events, $logger);
+        $move = new MoveStockService($lotRepository, $movementRepository, $transactions, $clock, $ids, $events, $logger, $reservationRepository);
+        $available = new GetAvailableStockService($lotRepository, $reservationRepository);
+
+        $receive->receive(new GoodsReceipt(null, 'SKU-DB-MOVE', 'WH-1', 'BIN-A', '2026-01-01T00:00:00+00:00', 10, 5, 'USD', 'PO-A'));
+        $reserve->reserve('SKU-DB-MOVE', 'WH-1', 'BIN-A', 8, 'ORDER-DB', 'RES-DB', '2026-01-03T00:00:00+00:00');
+
+        try {
+            $move->move('SKU-DB-MOVE', 'WH-1', 'BIN-A', 'WH-2', 'BIN-B', 3, 'MOVE-DB', 'MOVE-DB-OP', '2026-01-04T00:00:00+00:00');
+            $this->fail('Expected move to reject transferring reserved stock.');
+        } catch (InsufficientStockException $exception) {
+            $this->assertSame('Insufficient stock for SKU "SKU-DB-MOVE". Requested 3, available 2.', $exception->getMessage());
+        }
+
+        $sourceBalance = $available->getBalance('SKU-DB-MOVE', 'WH-1', 'BIN-A');
+        $targetBalance = $available->getBalance('SKU-DB-MOVE', 'WH-2', 'BIN-B');
+        $movements = $movementRepository->all();
+
+        $this->assertEquals(10, $sourceBalance->getOnHandQuantity(), '', 0.0001);
+        $this->assertEquals(8, $sourceBalance->getReservedQuantity(), '', 0.0001);
+        $this->assertEquals(2, $sourceBalance->getAvailableQuantity(), '', 0.0001);
+        $this->assertEquals(0, $targetBalance->getOnHandQuantity(), '', 0.0001);
+        $this->assertCount(2, $movements);
+        $this->assertSame('receipt', $movements[0]->getMovementType());
+        $this->assertSame('reservation', $movements[1]->getMovementType());
+    }
+
+    public function testReferencePdoKeepsFractionalAverageRoundingConsistent()
+    {
+        $connection = $this->createConnection();
+        $pdo = $connection['pdo'];
+
+        $lotRepository = new PdoInventoryLotRepository($pdo);
+        $movementRepository = new PdoStockMovementRepository($pdo);
+        $reservationRepository = new PdoReservationRepository($pdo);
+        $snapshotRepository = new PdoInventoryValuationSnapshotRepository($pdo);
+        $transactions = new PdoTransactionManager($pdo);
+
+        $config = new ValuationConfig('fifo');
+        $resolver = new ValuationMethodResolver($config);
+        $resolver->registerStrategy(new FifoValuationStrategy());
+        $resolver->registerStrategy(new LifoValuationStrategy());
+        $resolver->registerStrategy(new AverageCostValuationStrategy());
+
+        $clock = new SystemClock();
+        $ids = new IncrementalIdGenerator();
+        $events = new InMemoryEventDispatcher();
+        $logger = new NullLogger();
+
+        $receive = new ReceiveStockService($lotRepository, $movementRepository, $transactions, $clock, $ids, $events, $logger);
+        $ship = new ShipStockService($lotRepository, $movementRepository, $reservationRepository, $snapshotRepository, $resolver, $transactions, $clock, $ids, $events, $logger);
+        $adjust = new \StorePackage\WarehouseCore\Application\Service\AdjustInventoryService($lotRepository, $movementRepository, $reservationRepository, $snapshotRepository, $resolver, $transactions, $clock, $ids, $events, $logger);
+        $available = new GetAvailableStockService($lotRepository, $reservationRepository);
+
+        $receive->receive(new GoodsReceipt('REC-FRAC-1', 'SKU-FRAC', 'WH-1', 'BIN-A', '2026-01-01T00:00:00+00:00', 1.111111, 2.222222, 'USD', 'PO-FRAC-1'));
+        $receive->receive(new GoodsReceipt('REC-FRAC-2', 'SKU-FRAC', 'WH-1', 'BIN-A', '2026-01-02T00:00:00+00:00', 2.222222, 3.333333, 'USD', 'PO-FRAC-2'));
+
+        $shipmentResult = $ship->ship(new Shipment('SHIP-FRAC-1', 'SKU-FRAC', 'WH-1', 'BIN-A', 1.234567, 'SO-FRAC-1', '2026-01-03T00:00:00+00:00', 'average'));
+        $shipmentSnapshot = $snapshotRepository->findByOperationId('SHIP-FRAC-1');
+        $shipmentMovement = $movementRepository->findByOperationId('SHIP-FRAC-1');
+
+        $this->assertEquals(2.962963, $shipmentResult->getAverageUnitCost(), '', 0.000001);
+        $this->assertEquals(3.657976, $shipmentResult->getTotalCost(), '', 0.000001);
+        $this->assertEquals(3.333333, $shipmentSnapshot->getQuantityBasis(), '', 0.000001);
+        $this->assertEquals(9.876541, $shipmentSnapshot->getTotalCostBasis(), '', 0.000001);
+        $this->assertEquals(3.292181, $shipmentMovement[0]->getCostAllocations()[0]->getTotalCost(), '', 0.000001);
+        $this->assertEquals(0.365795, $shipmentMovement[0]->getCostAllocations()[1]->getTotalCost(), '', 0.000001);
+
+        $receive->receive(new GoodsReceipt('REC-FRAC-3', 'SKU-FRAC', 'WH-1', 'BIN-A', '2026-01-04T00:00:00+00:00', 0.444444, 4.444444, 'USD', 'PO-FRAC-3'));
+        $adjustmentResult = $adjust->adjust(new InventoryAdjustment('ADJ-FRAC-1', 'SKU-FRAC', 'WH-1', 'BIN-A', -2.222222, null, null, 'cycle-count loss', '2026-01-05T00:00:00+00:00', 'average'));
+        $adjustmentSnapshot = $snapshotRepository->findByOperationId('ADJ-FRAC-1');
+        $balance = $available->getBalance('SKU-FRAC', 'WH-1', 'BIN-A');
+
+        $this->assertEquals(3.527507, $adjustmentSnapshot->getAverageUnitCost(), '', 0.000001);
+        $this->assertEquals(2.54321, $adjustmentSnapshot->getQuantityBasis(), '', 0.000001);
+        $this->assertEquals(8.971192, $adjustmentSnapshot->getTotalCostBasis(), '', 0.000001);
+        $this->assertEquals(7.838904, $adjustmentResult->getTotalCost(), '', 0.000001);
+        $this->assertEquals(0.320988, $balance->getAvailableQuantity(), '', 0.000001);
     }
 
     private function applySchema(PDO $pdo, $path)

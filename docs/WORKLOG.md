@@ -332,3 +332,43 @@
 - Run the GitHub Actions matrix from a real git checkout
 - Validate CI matrix behavior for hosted modern jobs
 - Execute the reference PDO adapter against a MySQL DSN
+
+## Iteration 25
+
+- Re-read only the release/publishing docs, package release notes, Composer scripts and existing tools needed for release dry-run hardening.
+- Added `tools/run-release-dry-run.php` as a reproducible preflight for release work.
+- Added Composer shortcut `composer release:dry-run`.
+- The dry-run now checks:
+  - real git worktree presence
+  - clean-worktree discipline unless `--allow-dirty` is used intentionally
+  - strict Composer validation for root and adapter manifests
+  - schema-copy sync between root and package delivery files
+  - `origin` and `adapter-remote` configuration
+  - adapter package presence in committed `HEAD`
+  - local `git subtree split --prefix=packages/warehouse-pdo-adapter HEAD`
+- Found a real release-discipline issue while wiring the tool:
+  - package schema copies differed from the root schemas due only to extra header comments
+  - removed those comments so the package copies are now exact source-of-truth copies and dry-run checks fail only on meaningful drift
+- Updated release/publishing/handoff docs so they now reference the dry-run command and reflect the actual current git state:
+  - `adapter-remote` is configured locally
+  - subtree split works locally
+  - remaining blockers are clean worktree, remote reachability and real GitHub Actions confirmation
+
+## Iteration 26
+
+- Re-read only the release dry-run tool, release docs and package release checklists needed for clean-checkout rehearsal.
+- Added `tools/run-release-rehearsal.php`.
+- Added Composer shortcut `composer release:rehearse`.
+- The rehearsal now:
+  - resolves committed `HEAD`
+  - creates a temporary clean `git worktree`
+  - runs the strict preflight against that clean checkout
+  - can optionally add remote reachability checks via `--check-remotes`
+  - removes the temporary worktree automatically unless `--keep-worktree` is used
+- Confirmed the rehearsal semantics are intentionally stricter than `--allow-dirty`:
+  - it ignores uncommitted workspace changes
+  - this makes it suitable as the final pre-tag confirmation step
+- Updated root and package release docs so the canonical path is now:
+  - commit intended release candidate
+  - run `composer release:rehearse`
+  - run `php tools/run-release-rehearsal.php --check-remotes` from the release environment

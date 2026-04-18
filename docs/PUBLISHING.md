@@ -45,16 +45,19 @@
 - Packagist / Private Packagist registration exercise
 - Release choreography for two packages from one repository
 - Actual execution from a real git checkout with access to both remotes
-- Clean release worktree with the adapter package present in committed history
+- Clean release worktree with remote reachability confirmed from the release environment
 
 ## Release checklist
 
+- Commit the intended release candidate
+- Run `composer release:rehearse`
+- In a release-ready environment, re-run `php tools/run-release-rehearsal.php --check-remotes`
 - Run tests for supported PHP versions
-- Ensure `test-legacy`, `test-modern` and `runtime-smoke` CI jobs are green
+- Ensure `test-legacy`, `test-modern`, `runtime-smoke` and `test-db-reference` CI jobs are green
 - Confirm versioning and tag strategy for `warehouse-core` and `warehouse-pdo-adapter`
 - Confirm that package schema copies match the root source-of-truth schemas
 - Follow [docs/RELEASE_EXECUTION.md](docs/RELEASE_EXECUTION.md) for subtree split, tag creation and push order
-- Confirm `adapter-remote` exists and that remotes are reachable before attempting the adapter release
+- Confirm remotes are reachable before attempting the adapter release
 - Review README, architecture and worklog
 - Update changelog
 - Create and push git tag

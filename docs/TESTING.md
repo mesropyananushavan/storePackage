@@ -17,15 +17,16 @@
 - Reservation effect on availability
 - Shipment allocation persistence
 - Average valuation reproducibility
+- Reservation-aware transfer rejection
+- Fractional weighted-average rounding consistency across shipments, adjustments and snapshots
 - Audit persistence of valuation method
 - Move plus adjustment flow smoke coverage in unit tests
 
 ## Not yet covered well
 
-- Reservation-aware transfer policy
 - Concurrent update behavior for DB-backed repositories
 - Multi-currency validation edge cases
-- Decimal precision edge cases with fractional quantities
+- Decimal precision edge cases beyond the covered 6-decimal weighted-average paths
 - Vendor-specific locking behavior in the reference PDO adapter
 
 ## Compatibility strategy
@@ -77,8 +78,11 @@
 - Can target an external PDO database with `WAREHOUSE_DB_DSN`, `WAREHOUSE_DB_USER`, `WAREHOUSE_DB_PASSWORD` and optional `WAREHOUSE_DB_SCHEMA_FILE`
 - Auto-selects `database/schema/mysql.sql` when the DSN starts with `mysql:` and no schema override is provided
 - Adds `tests/Unit/PdoReferenceAdapterTest.php`, which skips automatically when `ext-pdo_sqlite` is unavailable
-- Covers lot persistence, reservation persistence, average-cost shipment persistence, movement hydration and snapshot persistence
+- Covers lot persistence, reservation persistence, reservation-aware transfer rejection, average-cost shipment persistence, movement hydration and snapshot persistence
+- Covers fractional weighted-average shipment/adjustment rounding consistency and snapshot reproducibility on both in-memory and PDO-backed paths
 - Also covers transaction rollback behavior through `PdoTransactionManager`
+- CI job: `test-db-reference`
+- CI scope: hosted PHP 8.1 with `pdo_sqlite`, `composer test:db-smoke` and `vendor/bin/phpunit --filter PdoReferenceAdapterTest`
 - Docker helper path:
   - `bash tools/run-mysql-verification-docker.sh test`
   - Starts MySQL 8 in Docker, waits for readiness, exports MySQL DSN settings for the child process, runs the DB smoke path and `PdoReferenceAdapterTest`, then removes the container by default
@@ -113,11 +117,11 @@
 ## Known limitations
 
 - Legacy PHPUnit execution is now confirmed in the Docker path with PHP 5.6.40 and PHPUnit 5.7.27.
-- GitHub Actions matrix still needs live confirmation for the Docker legacy job and the hosted modern jobs.
+- GitHub Actions matrix still needs live confirmation for the Docker legacy job, the hosted modern jobs and the hosted SQLite-backed reference DB job.
 - `composer install --no-dev` from a source checkout without `composer.lock` is not a reliable workaround, because Composer still resolves dev constraints before skipping package installation.
 - Legacy Docker builds still rely on archived Debian package mirrors, so image build stability depends on archive availability.
 - GitHub-side effectiveness of Buildx cache and Composer caches still needs a real remote run to confirm.
-- This workspace cannot trigger or inspect GitHub Actions because it is not a git checkout and has no `gh` CLI.
+- This workspace cannot trigger or inspect GitHub Actions because GitHub tooling/access is unavailable here.
 - Remote validation was re-checked in the current iteration and is still blocked by workspace limitations, not by any newly observed workflow issue.
 - The verified MySQL path still reflects a disposable Docker baseline rather than a managed production MySQL deployment.
 - The verified PostgreSQL path still reflects a disposable Docker baseline rather than a managed production PostgreSQL deployment.

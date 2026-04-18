@@ -112,7 +112,8 @@ class TestContext
             $this->clock,
             $this->ids,
             $this->events,
-            $this->logger
+            $this->logger,
+            $this->reservationRepository
         );
         $this->adjust = new AdjustInventoryService(
             $this->lotRepository,

@@ -14,7 +14,7 @@ abstract class AbstractInventoryValuationStrategy implements InventoryValuationS
     {
         $quantity = 0.0;
         foreach ($lots as $lot) {
-            $quantity = $quantity + $lot->getQuantityRemaining();
+            $quantity = $this->roundNumber($quantity + $lot->getQuantityRemaining());
         }
 
         return $quantity;
@@ -24,7 +24,7 @@ abstract class AbstractInventoryValuationStrategy implements InventoryValuationS
     {
         $cost = 0.0;
         foreach ($lots as $lot) {
-            $cost = $cost + ($lot->getQuantityRemaining() * $lot->getUnitCost());
+            $cost = $this->roundNumber($cost + ($lot->getQuantityRemaining() * $lot->getUnitCost()));
         }
 
         return $cost;
@@ -45,6 +45,7 @@ abstract class AbstractInventoryValuationStrategy implements InventoryValuationS
 
     protected function buildSequentialResult(array $lots, $requestedQuantity, $method, array $context, $costMode)
     {
+        $requestedQuantity = $this->roundNumber($requestedQuantity);
         $availableQuantity = $this->sumAvailableQuantity($lots);
         if ($requestedQuantity > $availableQuantity) {
             $sku = isset($context['sku']) ? $context['sku'] : 'unknown';
@@ -59,9 +60,11 @@ abstract class AbstractInventoryValuationStrategy implements InventoryValuationS
         $averageUnitCost = 0.0;
         $basisQuantity = $availableQuantity;
         $basisCost = $this->sumAvailableCost($lots);
+        $targetTotalCost = null;
 
         if ($costMode === 'average') {
             $averageUnitCost = $availableQuantity > 0 ? $this->roundNumber($basisCost / $availableQuantity) : 0.0;
+            $targetTotalCost = $this->roundNumber($requestedQuantity * $averageUnitCost);
         }
 
         foreach ($lots as $lot) {
@@ -70,16 +73,21 @@ abstract class AbstractInventoryValuationStrategy implements InventoryValuationS
             }
 
             $quantity = min($remaining, $lot->getQuantityRemaining());
+            $quantity = $this->roundNumber($quantity);
             if ($quantity <= 0) {
                 continue;
             }
 
             $unitCost = $costMode === 'average' ? $averageUnitCost : $lot->getUnitCost();
             $lineCost = $this->roundNumber($quantity * $unitCost);
+            if ($costMode === 'average' && $this->roundNumber($remaining - $quantity) <= 0) {
+                $lineCost = $this->roundNumber($targetTotalCost - $totalCost);
+            }
+
             $allocations[] = new CostAllocation($lot->getLotId(), $quantity, $unitCost, $lineCost, $currency);
-            $allocated = $allocated + $quantity;
-            $totalCost = $totalCost + $lineCost;
-            $remaining = $remaining - $quantity;
+            $allocated = $this->roundNumber($allocated + $quantity);
+            $totalCost = $this->roundNumber($totalCost + $lineCost);
+            $remaining = $this->roundNumber($remaining - $quantity);
         }
 
         if ($this->roundNumber($allocated) !== $this->roundNumber($requestedQuantity)) {

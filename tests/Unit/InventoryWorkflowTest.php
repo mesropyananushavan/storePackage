@@ -54,6 +54,33 @@ class InventoryWorkflowTest extends BaseTestCase
         $context->ship->ship(new Shipment('SHIP-2', 'SKU-1', 'WH-1', 'BIN-A', 3, 'SO-2', '2026-02-01T00:00:00+00:00', 'fifo'));
     }
 
+    public function testMoveDoesNotTransferReservedStockOutOfSourceLocation()
+    {
+        $context = new TestContext();
+        $context->seedReceipt('SKU-1', 'WH-1', 'BIN-A', 10, 5, '2026-01-01T00:00:00+00:00', 'PO-A');
+        $context->reserve->reserve('SKU-1', 'WH-1', 'BIN-A', 8, 'ORDER-1');
+
+        try {
+            $context->move->move('SKU-1', 'WH-1', 'BIN-A', 'WH-2', 'BIN-B', 3, 'MOVE-1', 'MOVE-OP-1', '2026-02-01T00:00:00+00:00');
+            $this->fail('Expected move to reject transferring reserved stock.');
+        } catch (InsufficientStockException $exception) {
+            $this->assertSame('Insufficient stock for SKU "SKU-1". Requested 3, available 2.', $exception->getMessage());
+        }
+
+        $sourceBalance = $context->available->getBalance('SKU-1', 'WH-1', 'BIN-A');
+        $targetBalance = $context->available->getBalance('SKU-1', 'WH-2', 'BIN-B');
+
+        $this->assertEquals(10, $sourceBalance->getOnHandQuantity(), '', 0.0001);
+        $this->assertEquals(8, $sourceBalance->getReservedQuantity(), '', 0.0001);
+        $this->assertEquals(2, $sourceBalance->getAvailableQuantity(), '', 0.0001);
+        $this->assertEquals(0, $targetBalance->getOnHandQuantity(), '', 0.0001);
+        $movements = $context->movementRepository->all();
+
+        $this->assertCount(2, $movements);
+        $this->assertSame('receipt', $movements[0]->getMovementType());
+        $this->assertSame('reservation', $movements[1]->getMovementType());
+    }
+
     public function testAverageValuationCreatesReproducibleSnapshot()
     {
         $context = new TestContext();

@@ -31,6 +31,29 @@ Before any real release or meaningful dry-run:
 4. A second remote for the adapter package must exist, for example `adapter-remote`.
 5. `packages/warehouse-pdo-adapter/` must be present in committed history, otherwise `git subtree split` has nothing to cut.
 
+## Reproducible dry-run
+
+Use the preflight script before any tag or push step:
+
+- strict local preflight:
+  - `composer release:dry-run`
+- clean release rehearsal from committed `HEAD`:
+  - `composer release:rehearse`
+- release-environment rehearsal with remote reachability checks:
+  - `php tools/run-release-rehearsal.php --check-remotes`
+
+The dry-run validates:
+
+- git worktree presence
+- clean worktree requirement unless `--allow-dirty` is used intentionally
+- strict Composer manifest validation for root and adapter packages
+- root/package schema-copy sync
+- `origin` and `adapter-remote` configuration
+- adapter package presence in committed `HEAD`
+- `git subtree split --prefix=packages/warehouse-pdo-adapter HEAD`
+
+`composer release:rehearse` runs the same strict preflight inside a temporary clean `git worktree` created from committed `HEAD`, so it can be used safely even when the current working tree is dirty. This rehearsal intentionally ignores uncommitted workspace changes.
+
 ## Tagging policy
 
 - Core release tags in the monorepo root use plain semver:
@@ -98,11 +121,12 @@ Before step 3 of the adapter release:
 ## Latest dry-run result
 
 - Real git checkout: confirmed
-- Local branch/tag creation: confirmed
 - `origin` configured: confirmed
-- `origin` reachable from this environment: not confirmed, DNS resolution failed
-- `adapter-remote` configured: not confirmed, remote missing
-- `git subtree split` on `packages/warehouse-pdo-adapter/`: blocked because the package directory is not yet part of committed `HEAD`
+- `adapter-remote` configured: confirmed
+- `packages/warehouse-pdo-adapter/` present in committed `HEAD`: confirmed
+- `git subtree split` on `packages/warehouse-pdo-adapter/`: confirmed locally and currently resolves to split commit `325b54f71c0290313e82a524ffe35d30f7d41280`
+- strict dry-run still requires a clean worktree; use `composer release:rehearse` for clean-checkout confirmation against committed `HEAD`
+- remote reachability from this environment: not confirmed; use `--check-remotes` in a release-ready environment
 
 ## What can be automated later
 

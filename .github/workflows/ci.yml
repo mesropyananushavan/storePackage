@@ -101,3 +101,41 @@ jobs:
 
       - name: Run fallback verification path
         run: composer verify
+
+  test-db-reference:
+    name: test / php 8.1 / sqlite reference pdo
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          coverage: none
+          tools: composer:v2.7
+          extensions: dom, json, libxml, mbstring, tokenizer, xmlwriter, pdo_sqlite
+
+      - name: Cache Composer downloads
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.COMPOSER_CACHE_DIR }}
+          key: db-reference-composer-${{ runner.os }}-php8.1-${{ hashFiles('composer.json') }}
+          restore-keys: |
+            db-reference-composer-${{ runner.os }}-php8.1-
+            modern-composer-${{ runner.os }}-php8.1-
+            modern-composer-${{ runner.os }}-
+
+      - name: Validate Composer manifest
+        run: composer validate --strict
+
+      - name: Resolve dev dependencies
+        run: composer update --no-interaction --prefer-dist --no-progress
+
+      - name: Run SQLite-backed DB smoke path
+        run: composer test:db-smoke
+
+      - name: Run PDO reference adapter PHPUnit path
+        run: vendor/bin/phpunit --filter PdoReferenceAdapterTest

@@ -6,7 +6,7 @@
 - Then inspect `docs/TESTING.md` and `docs/PUBLISHING.md` before doing any wider scan.
 - Next run for CI validation must happen from a real git checkout with GitHub access.
 - Do not spend another iteration on local CI hardening unless a real GitHub Actions run exposes a pipeline problem.
-- Remote validation was re-checked again and remains blocked only by missing `.git` metadata and `gh`.
+- Remote validation was re-checked again and remains blocked by missing GitHub tooling/access in this workspace.
 - A reference PDO adapter now exists; the next persistence-focused iteration should inspect `src/Infrastructure/Pdo/` and `database/schema/` before touching the rest of the codebase.
 - The SQLite-backed DB verification path is now confirmed in this workspace.
 - The recent Average Cost mismatch was an expectation defect, not a PDO persistence/hydration defect.
@@ -31,11 +31,12 @@
   - monorepo bookkeeping tags for the adapter use `pdo-adapter-vX.Y.Z`
 - Dry-run release findings are now concrete:
   - this is a real git checkout
-  - local branch/tag creation works
   - `origin` is configured
-  - `adapter-remote` is missing
-  - `packages/warehouse-pdo-adapter/` is not committed into `HEAD`, so subtree split currently returns no revisions
-  - remote access to `origin` failed in this environment due DNS resolution
+  - `adapter-remote` is configured
+  - `git subtree split --prefix=packages/warehouse-pdo-adapter HEAD` now succeeds locally
+  - `composer release:rehearse` now validates committed `HEAD` in a temporary clean worktree
+  - the current rehearsal still fails against committed `HEAD`, which means the latest release-discipline fixes are not yet represented by the current commit history
+  - remote access to `origin` is still not confirmed in this environment
 
 ## First files to inspect next
 
@@ -65,11 +66,12 @@
 
 - Run the split CI matrix in GitHub Actions from a real git checkout
 - Confirm the Docker-based legacy CI job on GitHub Actions
+- Confirm the hosted SQLite-backed reference DB CI job on GitHub Actions
 - Confirm cache reuse behavior in the legacy Docker job and the modern Composer jobs
 - Do not reopen runtime ownership.
 - If the next step is publishing, follow the compatibility/schema-sync/release docs rather than changing package structure.
 - Use the chosen subtree plan; do not switch to a different monorepo publishing strategy without a new explicit decision.
-- Before the next release dry-run, make sure the package files are committed and `adapter-remote` is configured.
+- Before the next release attempt, commit the intended release candidate, run `composer release:rehearse`, then re-run the same rehearsal with `--check-remotes` from the release environment.
 - Reuse the Docker-backed MySQL or PostgreSQL helpers only if you need to regression-check the existing PDO infrastructure.
 - If extraction planning exposes missing persistence concerns, keep them scoped to adapter packaging rather than reopening core logic.
 

@@ -14,7 +14,7 @@ The core is intentionally written in a legacy-compatible style so it can run in 
 
 - Stock receipt with lot creation and source document traceability
 - Shipment with FIFO, LIFO and weighted average costing
-- Transfer between warehouses and locations
+- Transfer between warehouses and locations with reservation-aware availability checks
 - Reservation and release of reservations
 - Positive and negative inventory adjustments
 - Available stock calculation with reservation impact
@@ -138,6 +138,8 @@ $ship->ship(new Shipment(null, 'SKU-1', 'WH-1', 'BIN-A', 7, 'SHIP-10', null, 'fi
 $move->move('SKU-1', 'WH-1', 'BIN-A', 'WH-2', 'BIN-B', 4, 'MOVE-10');
 ```
 
+Transfers are validated against source-location availability, so active reservations reduce how much stock can be moved out.
+
 ### Selecting FIFO / LIFO / Average
 
 ```php
@@ -231,6 +233,24 @@ Release preconditions are now explicit:
 
 See [docs/RELEASE_EXECUTION.md](docs/RELEASE_EXECUTION.md) for the concrete release choreography and tag policy.
 
+Release preflight is now reproducible from one command:
+
+```bash
+composer release:dry-run
+```
+
+Clean release rehearsal from a temporary clean checkout of committed `HEAD`:
+
+```bash
+composer release:rehearse
+```
+
+For a release-ready environment where remote reachability should also be checked:
+
+```bash
+php tools/run-release-rehearsal.php --check-remotes
+```
+
 ### MySQL notes
 
 - `database/schema/mysql.sql` is the preferred schema when `WAREHOUSE_DB_DSN` starts with `mysql:`
@@ -286,6 +306,7 @@ $transactions = new PdoTransactionManager($pdo);
 - No typed properties, union types, attributes or enums
 - No `strict_types`
 - Numeric calculations use floats with documented rounding compromise
+- Weighted average now normalizes to 6-decimal totals and balances final allocation rounding so line totals stay consistent with operation totals
 - Core avoids framework containers and annotations
 - Reference DB adapter requires `ext-pdo`; optional smoke testing via SQLite needs `ext-pdo_sqlite`
 
@@ -392,11 +413,14 @@ Run this only in a DB-capable environment:
    - lot save/load works
    - FIFO/LIFO lot ordering is correct
    - weighted average returns expected value
+   - fractional weighted-average operations keep rounded line totals, movement totals and snapshots consistent
    - reservations persist and reduce availability
    - movement history hydrates allocations without collapsing Average Cost into a synthetic single line
    - average-cost shipment persists valuation snapshot
    - transaction wrapper commits on success and rolls back on failure
    - MySQL path uses `database/schema/mysql.sql` unless explicitly overridden
+
+GitHub Actions also runs the SQLite-backed reference adapter path by default through the `test-db-reference` job on PHP 8.1 with `pdo_sqlite`.
 
 Expected smoke result for the seeded scenario:
 
@@ -416,6 +440,7 @@ Expected smoke result for the seeded scenario:
 
 - PHP 5.6: Docker-based legacy job
 - PHP 7.4 / 8.1: hosted `setup-php` jobs
+- PHP 8.1 + SQLite reference adapter: hosted DB smoke + `PdoReferenceAdapterTest`
 - Runtime smoke: hosted PHP 8.1 with `composer verify`
 - Remote validation still has to be executed from a real git checkout with GitHub Actions access
 
@@ -426,6 +451,8 @@ Expected smoke result for the seeded scenario:
 - Faster repeated legacy run with existing image: `WAREHOUSE_LEGACY_SKIP_BUILD=1 bash tools/run-legacy-tests-docker.sh`
 - Full modern PHPUnit path: `composer test` in a host environment that has `ext-dom` and `ext-xmlwriter`
 - Reference DB adapter smoke path: `composer test:db-smoke`
+- Release/publish preflight: `composer release:dry-run`
+- Clean release rehearsal from committed `HEAD`: `composer release:rehearse`
 - External DB example:
   `WAREHOUSE_DB_DSN="mysql:host=127.0.0.1;dbname=warehouse" WAREHOUSE_DB_USER=user WAREHOUSE_DB_PASSWORD=secret composer test:db-smoke`
 - MySQL PHPUnit path:

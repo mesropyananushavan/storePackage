@@ -113,3 +113,33 @@
 - Decision: treat committed package history and configured adapter remote as hard prerequisites for subtree-based release dry-runs.
 - Reason: the first real dry-run showed that `git subtree split` cannot validate an uncommitted package subtree and that documenting the split flow is not enough unless the remote layout also exists.
 - Consequences: release docs now explicitly require a clean/committed worktree, `adapter-remote`, and reachable remotes before the first meaningful adapter release attempt.
+
+## 2026-04-18 / Iteration 22
+
+- Decision: block stock transfers that would consume source inventory already reserved at that same warehouse/location scope.
+- Reason: transfering against on-hand only could push source availability negative and break the reservation contract even when shipment and adjustment flows already respected reservations.
+- Consequences: `MoveStockService` now accepts an optional reservation repository for availability-aware guards, existing constructor calls remain valid, and transfer coverage now includes both in-memory and PDO-backed rejection paths.
+
+## 2026-04-18 / Iteration 23
+
+- Decision: keep weighted-average arithmetic float-based, but normalize request/basis totals to 6 decimals and assign the final rounding remainder to the last allocation line.
+- Reason: the existing average-cost path could drift by `0.000001` between summed allocation totals and the rounded movement total during fractional operations, which weakens audit reproducibility even if the public API stays the same.
+- Consequences: shipment and negative-adjustment average-cost operations now keep allocation totals, movement totals and snapshots internally aligned on both in-memory and PDO-backed paths without introducing a new decimal dependency.
+
+## 2026-04-18 / Iteration 24
+
+- Decision: make the SQLite-backed reference PDO adapter path part of the default GitHub Actions gate.
+- Reason: local release confidence already depended on `composer test:db-smoke` and `PdoReferenceAdapterTest`, but the hosted CI matrix did not exercise the reference persistence path at all.
+- Consequences: the repository now expects a green `test-db-reference` job alongside legacy, modern and runtime-smoke jobs before calling the release matrix fully confirmed.
+
+## 2026-04-18 / Iteration 25
+
+- Decision: codify release preflight as a repository tool instead of relying on an informal checklist for subtree/publish dry-runs.
+- Reason: release docs had already drifted from the actual git state, and the highest-risk publication mistakes were procedural: dirty worktree, unsynced schema copies, missing subtree validation and inconsistent assumptions about remotes.
+- Consequences: `composer release:dry-run` now validates root/package manifests, schema-copy sync, remote configuration and local subtree-split reproducibility; package schema copies were also tightened to match the root source-of-truth files exactly so the dry-run can fail on real drift instead of comment noise.
+
+## 2026-04-18 / Iteration 26
+
+- Decision: make clean release rehearsal a first-class workflow by validating committed `HEAD` inside a temporary clean worktree.
+- Reason: strict preflight on the live workspace is useful, but it still leaves ambiguity when the current tree is dirty; before any real tag/push step, the team needs one deterministic command that answers whether the committed release candidate itself is publish-ready.
+- Consequences: `composer release:rehearse` now provides clean-checkout confirmation without touching the current workspace, and release docs now use that rehearsal as the canonical pre-tag path before optional remote reachability checks.

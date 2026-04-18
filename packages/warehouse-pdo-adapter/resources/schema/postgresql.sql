@@ -1,6 +1,3 @@
--- Copy of ../../../database/schema/postgresql.sql
--- Source of truth stays in the root reference schema.
-
 -- PostgreSQL-oriented schema for the reference PDO adapter.
 
 CREATE TABLE IF NOT EXISTS inventory_lots (

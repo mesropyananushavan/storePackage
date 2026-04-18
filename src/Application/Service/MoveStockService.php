@@ -3,6 +3,7 @@
 namespace StorePackage\WarehouseCore\Application\Service;
 
 use StorePackage\WarehouseCore\Contracts\InventoryLotRepositoryInterface;
+use StorePackage\WarehouseCore\Contracts\ReservationRepositoryInterface;
 use StorePackage\WarehouseCore\Contracts\StockMovementRepositoryInterface;
 use StorePackage\WarehouseCore\Domain\Entity\CostAllocation;
 use StorePackage\WarehouseCore\Domain\Entity\StockMovement;
@@ -14,6 +15,7 @@ class MoveStockService extends AbstractApplicationService
 {
     private $lots;
     private $movements;
+    private $reservations;
 
     public function __construct(
         InventoryLotRepositoryInterface $lots,
@@ -22,11 +24,13 @@ class MoveStockService extends AbstractApplicationService
         $clock,
         $ids,
         $events,
-        $logger
+        $logger,
+        ReservationRepositoryInterface $reservations = null
     ) {
         parent::__construct($transactions, $clock, $ids, $events, $logger);
         $this->lots = $lots;
         $this->movements = $movements;
+        $this->reservations = $reservations;
     }
 
     public function move($sku, $fromWarehouseId, $fromLocationId, $toWarehouseId, $toLocationId, $quantity, $sourceDocument, $operationId = null, $movedAt = null)
@@ -36,7 +40,13 @@ class MoveStockService extends AbstractApplicationService
 
         return $this->transactions->transactional(function () use ($sku, $fromWarehouseId, $fromLocationId, $toWarehouseId, $toLocationId, $quantity, $sourceDocument, $operationId, $movedAt, $self) {
             $lots = $self->lots->findAvailableLotsOrderedOldestFirst($sku, $fromWarehouseId, $fromLocationId);
-            $available = $self->sumLotQuantity($lots);
+            $onHand = $self->sumLotQuantity($lots);
+            $reserved = 0.0;
+            if ($self->reservations !== null) {
+                $reserved = $self->reservations->getReservedQuantity($sku, $fromWarehouseId, $fromLocationId);
+            }
+
+            $available = $onHand - $reserved;
             if ($quantity > $available) {
                 throw new InsufficientStockException($sku, $quantity, $available);
             }

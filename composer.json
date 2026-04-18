@@ -54,11 +54,21 @@
         "test:db:mysql:docker": "bash tools/run-mysql-verification-docker.sh test",
         "test:db:pgsql:docker": "bash tools/run-postgres-verification-docker.sh test",
         "test:smoke": "@php tools/run-smoke-tests.php",
+        "release:dry-run": "@php tools/run-release-dry-run.php",
+        "release:rehearse": "@php tools/run-release-rehearsal.php",
         "verify": [
             "@lint",
             "@test:smoke"
         ]
     },
     "minimum-stability": "stable",
-    "prefer-stable": true
+    "prefer-stable": true,
+    "repositories": {
+        "packagist.org": false,
+        "packagist": false,
+        "private-packagist": {
+            "type": "composer",
+            "url": "https://repo.packagist.com/amstore/"
+        }
+    }
 }

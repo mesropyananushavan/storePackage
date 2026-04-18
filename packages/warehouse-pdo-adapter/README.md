@@ -30,6 +30,8 @@
 - Production-facing packaging ownership: `storepackage/warehouse-pdo-adapter`
 - Schema-copy ownership for application bootstrap/reference migrations: `storepackage/warehouse-pdo-adapter`
 
+The default CI gate for runtime confidence also stays with `warehouse-core`, including the hosted SQLite-backed reference PDO adapter verification path.
+
 ## Versioning and compatibility
 
 - `warehouse-core` and `warehouse-pdo-adapter` use semantic versioning.
@@ -74,6 +76,12 @@ Schema copies must be updated in the same commit whenever the corresponding root
   - this package directory to be committed in monorepo history
   - an `adapter-remote` to exist
   - reachable remotes during the release run
+
+Use the root preflight before adapter release work:
+
+- `composer release:dry-run`
+- `composer release:rehearse`
+- `php tools/run-release-rehearsal.php --check-remotes` from the release environment
 
 ## Minimal bootstrap
 

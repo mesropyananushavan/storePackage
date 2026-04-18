@@ -1,6 +1,3 @@
--- Copy of ../../../database/schema/mysql.sql
--- Source of truth stays in the root reference schema.
-
 -- MySQL-oriented schema for the reference PDO adapter.
 -- Assumes InnoDB and utf8mb4 for row-level locking support and safe text storage.
 -- Timestamps remain ISO-8601 strings to preserve the core contract.

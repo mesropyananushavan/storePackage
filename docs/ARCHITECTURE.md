@@ -27,7 +27,7 @@
 
 - `ReceiveStockService`: creates lots and receipt audit entries.
 - `ShipStockService`: resolves valuation strategy, persists cost allocations, updates lots and stores average-cost snapshots.
-- `MoveStockService`: moves full lots in place and splits partial transfers into derived lots while preserving provenance.
+- `MoveStockService`: moves only unreserved source stock, keeps full-lot identity on complete moves and splits partial transfers into derived lots while preserving provenance.
 - `ReserveStockService` / `ReleaseReservationService`: manage availability without changing physical on-hand.
 - `AdjustInventoryService`: handles positive adjustments as new lots and negative adjustments through valuation strategies.
 - `GetAvailableStockService`: returns on-hand, reserved and available balance.
@@ -37,6 +37,7 @@
 
 - Strategy interface resolves FIFO, LIFO and weighted average without hardcoding the method into shipment or adjustment services.
 - Average cost requires snapshot persistence for reproducible audit.
+- Average-cost valuation normalizes quantity/cost totals to 6 decimals and assigns any final rounding remainder to the last allocation line so movement totals, allocation totals and snapshots stay aligned.
 - Resolver priority is `explicit override > SKU override > warehouse override > global default`.
 
 ## Audit
@@ -83,6 +84,7 @@
 
 ## Transfer policy
 
+- Transfers are checked against source availability, not just source on-hand, so active reservations remain protected.
 - Full-lot move: keep the same lot identity and update warehouse/location.
 - Partial move: decrement the source lot and create a derived lot with `parentLotId` pointing to the origin lot.
 - Original `receivedAt` and unit cost are preserved so FIFO/LIFO aging and provenance remain traceable.
@@ -94,4 +96,5 @@
 - No scalar type hints, return types, typed properties, enums or attributes.
 - Runtime helpers use strings for timestamps to avoid modern date abstractions leaking into the core API.
 - Float arithmetic is used for costs with 6-decimal rounding as a pragmatic legacy-compatible compromise.
+- The weighted-average path now explicitly balances last-line rounding so fractional operations do not drift by `0.000001` between allocation totals and persisted movement totals.
 - The reference DB adapter uses PDO directly and stores flexible metadata as JSON text to avoid DBAL or ORM dependencies that would narrow PHP 5.6 compatibility.
