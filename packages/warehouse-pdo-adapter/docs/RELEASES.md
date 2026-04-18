@@ -20,7 +20,7 @@
 8. Update package README or docs if bootstrap, operations or publishing guidance changed.
 9. Create a monorepo bookkeeping tag such as `pdo-adapter-v0.1.0`.
 10. Create a subtree split branch from `packages/warehouse-pdo-adapter/`.
-11. Tag the split commit with the plain semver tag that the published adapter repo will expose.
+11. Create a temporary local tag such as `adapter-release-v0.1.0` for the split commit, then push it to the adapter repository as plain `v0.1.0`.
 12. Confirm the split branch was produced from committed package history rather than only from uncommitted workspace files.
 
 ## Release note expectations

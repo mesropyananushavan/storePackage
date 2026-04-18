@@ -64,6 +64,7 @@ The dry-run validates:
   - `v0.1.0`
 
 This avoids tag-name collisions in the monorepo while keeping the published adapter repository Packagist-friendly.
+The temporary local `adapter-release-vX.Y.Z` tag exists only to carry an annotated tag object into the split repository as plain `vX.Y.Z`.
 
 ## Release choreography
 
@@ -86,13 +87,15 @@ This avoids tag-name collisions in the monorepo while keeping the published adap
    - `git tag -a pdo-adapter-v0.1.0 -m "storepackage/warehouse-pdo-adapter v0.1.0"`
 6. Build a split branch from the package directory:
    - `git subtree split --prefix=packages/warehouse-pdo-adapter -b split/pdo-adapter-v0.1.0`
-7. Tag the split commit locally with the adapter semver tag:
-   - `git tag -a v0.1.0 split/pdo-adapter-v0.1.0 -m "storepackage/warehouse-pdo-adapter v0.1.0"`
+7. Create a temporary local tag for the split commit with a non-conflicting local name:
+   - `git tag -a adapter-release-v0.1.0 split/pdo-adapter-v0.1.0 -m "storepackage/warehouse-pdo-adapter v0.1.0"`
 8. Push the split branch and semver tag to the dedicated adapter repository:
    - `git push adapter-remote split/pdo-adapter-v0.1.0:main`
-   - `git push adapter-remote v0.1.0`
+   - `git push adapter-remote refs/tags/adapter-release-v0.1.0:refs/tags/v0.1.0`
 9. Push the monorepo bookkeeping tag:
    - `git push origin pdo-adapter-v0.1.0`
+10. Delete the temporary local adapter tag after a successful push:
+   - `git tag -d adapter-release-v0.1.0`
 
 ## Compatibility discipline
 
