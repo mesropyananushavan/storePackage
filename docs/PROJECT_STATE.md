@@ -31,9 +31,8 @@ Build a production-oriented, framework-agnostic Composer package for warehouse a
   - package schema copies match the root source-of-truth schemas
   - `git subtree split --prefix=packages/warehouse-pdo-adapter HEAD` succeeds locally
 - Full release choreography is still blocked by release-environment issues:
-  - the intended release candidate still needs to be committed before clean rehearsal can validate that exact package state
-  - current clean rehearsal still reflects the last committed `HEAD`, which in this workspace does not yet include the latest schema-sync/release-tooling changes
-  - remote reachability to `origin` failed in this environment due DNS/network resolution
+  - committed `HEAD` now passes `composer release:rehearse` in a temporary clean worktree
+  - remote reachability to `origin` and `adapter-remote` still fails in this environment due DNS/network resolution
 - Project memory files are in place and now reflect actual code.
 - Syntax lint passed for all PHP files through `composer verify`.
 - Runtime smoke-checks passed for FIFO, Average Cost and move/adjust workflow flow through `composer verify`.
@@ -104,4 +103,4 @@ Build a production-oriented, framework-agnostic Composer package for warehouse a
 - Reference PDO adapter is now confirmed on SQLite, MySQL and PostgreSQL paths
 - Vendor-specific hardening is now sufficient for reference-adapter confidence; remaining work is release execution discipline, schema-copy sync discipline and deeper persistence tuning
 - Final release is still blocked on green GitHub Actions confirmation for `test-legacy`, `test-modern`, `runtime-smoke` and `test-db-reference` from a real repository checkout
-- First real package publication is also blocked until the intended release candidate is committed, remotes are reachable and the GitHub Actions matrix is confirmed from a real repository checkout
+- First real package publication is also blocked until remotes are reachable and the GitHub Actions matrix is confirmed from a real repository checkout

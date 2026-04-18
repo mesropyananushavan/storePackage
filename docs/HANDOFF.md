@@ -35,7 +35,7 @@
   - `adapter-remote` is configured
   - `git subtree split --prefix=packages/warehouse-pdo-adapter HEAD` now succeeds locally
   - `composer release:rehearse` now validates committed `HEAD` in a temporary clean worktree
-  - the current rehearsal still fails against committed `HEAD`, which means the latest release-discipline fixes are not yet represented by the current commit history
+  - the current committed `HEAD` is now aligned with the intended release candidate and passes clean rehearsal locally
   - remote access to `origin` is still not confirmed in this environment
 
 ## First files to inspect next
@@ -71,7 +71,7 @@
 - Do not reopen runtime ownership.
 - If the next step is publishing, follow the compatibility/schema-sync/release docs rather than changing package structure.
 - Use the chosen subtree plan; do not switch to a different monorepo publishing strategy without a new explicit decision.
-- Before the next release attempt, commit the intended release candidate, run `composer release:rehearse`, then re-run the same rehearsal with `--check-remotes` from the release environment.
+- Before the next real tag/push attempt, re-run `composer release:rehearse`, then re-run the same rehearsal with `--check-remotes` from the release environment.
 - Reuse the Docker-backed MySQL or PostgreSQL helpers only if you need to regression-check the existing PDO infrastructure.
 - If extraction planning exposes missing persistence concerns, keep them scoped to adapter packaging rather than reopening core logic.
 

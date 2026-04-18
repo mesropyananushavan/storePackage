@@ -258,7 +258,14 @@
 - Confirmed `warehouse-pdo-adapter` dry-run is blocked more concretely:
   - `adapter-remote` is missing
   - `packages/warehouse-pdo-adapter/` is not present in committed `HEAD`
-  - `git subtree split --prefix=packages/warehouse-pdo-adapter` therefore returned `No new revisions were found`
+
+## Iteration 22
+
+- Reviewed the outstanding release-discipline, schema-sync, CI and packaging changes in the working tree and grouped the intended release-candidate state into one commit.
+- Created commit `cc4fb37` with the release hardening, rehearsal tooling, schema-copy sync, CI coverage and related documentation updates.
+- Confirmed the workspace became clean after that commit.
+- Ran `composer release:rehearse` and verified that committed `HEAD` now passes clean-checkout release rehearsal.
+- Re-ran `php tools/run-release-rehearsal.php --check-remotes` and confirmed the only failing part in this environment is remote reachability to `origin` and `adapter-remote`.
 - Updated release docs to make those blockers explicit instead of leaving them implicit.
 
 ## Added files

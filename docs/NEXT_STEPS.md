@@ -4,7 +4,6 @@
 
 1. Keep the frozen boundary and release discipline intact: `warehouse-core` owns runtime plus verification tooling, `warehouse-pdo-adapter` owns production-facing packaging, schema copies and operational docs.
 2. Before the next publishing attempt:
-   - commit the intended release candidate
    - run `composer release:rehearse`
    - run `php tools/run-release-rehearsal.php --check-remotes` from a release-ready environment
    - if rehearsal still fails, treat that as committed-history drift and fix the committed release candidate before any tag/push step
