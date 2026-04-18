@@ -38,14 +38,15 @@
   - `warehouse-core` publishes from the root repository
   - `warehouse-pdo-adapter` publishes from a subtree-split mirror repository
 
-## Not ready yet
+## Operational prerequisites
 
 - Confirmed test execution on PHP 5.6 / 7.4 / 8.1
-- Real tag-based release from VCS
-- Packagist / Private Packagist registration exercise
+- Real git checkout with access to both remotes
+- Clean release worktree or a committed release candidate
+- Successful `composer release:rehearse`
+- Successful `php tools/run-release-rehearsal.php --check-remotes`
 - Release choreography for two packages from one repository
-- Actual execution from a real git checkout with access to both remotes
-- Clean release worktree with remote reachability confirmed from the release environment
+- Packagist / Private Packagist registration exercise
 
 ## Release checklist
 

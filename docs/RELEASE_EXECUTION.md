@@ -127,7 +127,7 @@ Before step 3 of the adapter release:
 - `git subtree split` on `packages/warehouse-pdo-adapter/`: confirmed locally on the current committed `HEAD`
 - strict dry-run still requires a clean worktree; use `composer release:rehearse` for clean-checkout confirmation against committed `HEAD`
 - `composer release:rehearse` now passes against the current committed `HEAD`
-- remote reachability from this environment: not confirmed; use `--check-remotes` in a release-ready environment
+- remote reachability from the release environment: confirmed through `php tools/run-release-rehearsal.php --check-remotes`
 
 ## What can be automated later
 

@@ -7,7 +7,7 @@
 - Boundary is frozen on the safe path:
   - runtime classes stay in `storepackage/warehouse-core`
   - this package owns production-facing bootstrap, schema copies and operations docs
-- This is still an in-repository extraction step, not a separately published package yet.
+- This package is released from an in-repository subtree path rather than directly from the monorepo root.
 
 ## What is included here
 

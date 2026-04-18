@@ -30,9 +30,9 @@ Build a production-oriented, framework-agnostic Composer package for warehouse a
   - `adapter-remote` is configured
   - package schema copies match the root source-of-truth schemas
   - `git subtree split --prefix=packages/warehouse-pdo-adapter HEAD` succeeds locally
-- Full release choreography is still blocked by release-environment issues:
-  - committed `HEAD` now passes `composer release:rehearse` in a temporary clean worktree
-  - remote reachability to `origin` and `adapter-remote` still fails in this environment due DNS/network resolution
+- Release candidate validation is now complete for the current committed `HEAD`:
+  - `composer release:rehearse` passes in a temporary clean worktree
+  - remote reachability to `origin` and `adapter-remote` is confirmed from the release environment
 - Project memory files are in place and now reflect actual code.
 - Syntax lint passed for all PHP files through `composer verify`.
 - Runtime smoke-checks passed for FIFO, Average Cost and move/adjust workflow flow through `composer verify`.
@@ -102,5 +102,5 @@ Build a production-oriented, framework-agnostic Composer package for warehouse a
 - Reference PDO adapter and SQL schema are included as optional infrastructure
 - Reference PDO adapter is now confirmed on SQLite, MySQL and PostgreSQL paths
 - Vendor-specific hardening is now sufficient for reference-adapter confidence; remaining work is release execution discipline, schema-copy sync discipline and deeper persistence tuning
-- Final release is still blocked on green GitHub Actions confirmation for `test-legacy`, `test-modern`, `runtime-smoke` and `test-db-reference` from a real repository checkout
-- First real package publication is also blocked until remotes are reachable and the GitHub Actions matrix is confirmed from a real repository checkout
+- The release candidate is now ready for the documented core tag and adapter subtree publication flow.
+- The main remaining confidence gap after release execution will still be hosted GitHub Actions confirmation for `test-legacy`, `test-modern`, `runtime-smoke` and `test-db-reference` from a real repository checkout.
